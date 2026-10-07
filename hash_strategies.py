@@ -109,18 +109,87 @@ class LinearProbingHashMap(Generic[K, V]):
 
     def insert(self, key: K, value: V) -> None:
         """Resize (double + rehash) once load factor > 0.7."""
-        # TODO
-        raise NotImplementedError
+
+        # resize check
+        if (self._count) / len(self._keys) > 0.7:
+            self.resize()
+
+
+        index = hash(key) % len(self._keys)
+        first_tombstone = None
+
+        for i in range(len(self._keys)):
+
+            slot = (index + i) % len(self._keys)
+
+            # inserts immediately if it hits None or at first_tombstone if we hit a tombstone while probing
+            if self._keys[slot] is None:
+                if first_tombstone is None:
+                    self._keys[slot] = key
+                    self._values[slot] = value
+                else:
+                    self._keys[first_tombstone] = key
+                    self._values[first_tombstone] = value
+                self._count += 1
+                return
+
+            # records the spot of TOMBSTONE and checks to see if any of the next keys are matching to prevent duplicate keys
+            elif self._keys[slot] is _TOMBSTONE:
+                if first_tombstone is None:
+                    first_tombstone = slot
+
+            # updates if it finds a mathcing key
+            elif self._keys[slot] == key:
+                self._values[slot] = value
+                return
+
+        # insert at first tombstone since it never hit None after a full loop through
+        self._keys[first_tombstone] = key
+        self._values[first_tombstone] = value
+        self._count += 1
+        return
+            
+
+    def resize(self) -> None:
+        old_keys = self._keys
+        old_values = self._values
+        self._keys = [None] * (len(old_keys) * 2)
+        self._values = [None] * (len(old_values) * 2)
+        self._count = 0
+        for i in range(len(old_keys)):
+            if old_keys[i] is not None and old_keys[i] is not _TOMBSTONE:
+                self.insert(old_keys[i], old_values[i])
 
     def search(self, key: K) -> V:
         """Return the value for `key`. Raise KeyError if missing."""
-        # TODO
-        raise NotImplementedError
+        index = hash(key) % len(self._keys)
+        for i in range(len(self._keys)):
+            slot = (index + i) % len(self._keys)
+            if self._keys[slot] is None:
+                break
+            if self._keys[slot] is _TOMBSTONE:
+                continue 
+            if self._keys[slot] == key:
+                return self._values[slot]
+        raise KeyError(f"There is no value for the key: {key} in the list")
 
     def delete(self, key: K) -> None:
         """Remove `key` using a tombstone (not None) so later probes don't stop early. Raise KeyError if missing."""
-        # TODO
-        raise NotImplementedError
+        index = hash(key) % len(self._keys)
+        for i in range(len(self._keys)):
+            slot = (index + i) % len(self._keys)
+            if self._keys[slot] is None:
+                break
+            elif self._keys[slot] is _TOMBSTONE:
+                continue
+            elif self._keys[slot] == key:
+                self._keys[slot] = _TOMBSTONE
+                self._values[slot] = None
+                self._count -= 1
+                return
+        raise KeyError(f"There is no key: {key} to delete in the list")
+            
+            
 
 
 class QuadraticProbingHashMap(Generic[K, V]):
