@@ -34,18 +34,66 @@ class ChainedHashMap(Generic[K, V]):
 
     def insert(self, key: K, value: V) -> None:
         """Insert, or update in place if `key` already exists. Resize (double + rehash) once load factor > 0.75."""
-        # TODO
-        raise NotImplementedError
+        index = hash(key) % len(self._buckets)
+        node = self._buckets[index]
+
+        # update the node's value
+        while node is not None:
+            if node.key == key:
+                node.value = value
+                return
+            node = node.next
+
+        # insert if it hits None
+        new_node = _ChainNode(key, value)
+        new_node.next = self._buckets[index] 
+        self._buckets[index] = new_node
+        self._count += 1
+
+        # resize check
+        if self._count / len(self._buckets) > 0.75:
+            self.resize()
+
+    # resizing method
+    def resize(self) -> None:
+        old_buckets = self._buckets
+        self._buckets = [None] * (len(old_buckets) * 2)
+        self._count = 0
+        for bucket in old_buckets:
+            node = bucket
+            while node is not None:
+                self.insert(node.key, node.value)
+                node = node.next
+
+
+
 
     def get(self, key: K) -> V:
         """Return the value for `key`. Raise KeyError if missing."""
-        # TODO
-        raise NotImplementedError
+        index = hash(key) % len(self._buckets)
+        node = self._buckets[index]
+        while node is not None:
+            if node.key == key:
+                return node.value
+            node = node.next
+        raise KeyError(f"There is no node with key: {key}")
 
     def delete(self, key: K) -> None:
         """Remove `key`. Raise KeyError if missing."""
-        # TODO
-        raise NotImplementedError
+        index = hash(key) % len(self._buckets)
+        node = self._buckets[index]
+        prev_node = None
+        while node is not None:
+            if node.key == key:
+                if prev_node is None:
+                    self._buckets[index] = node.next
+                else:
+                    prev_node.next = node.next
+                self.count -= 1
+                return
+            prev_node = node
+            node = node.next   
+        raise KeyError(f"There is no node with key: {key}")
 
 
 class LinearProbingHashMap(Generic[K, V]):
